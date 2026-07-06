@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지구 층상구조 마스터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .layer-zone { transition: background-color 0.3s; min-height: 100px; border: 2px dashed #4b5563; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; }
+        .card { cursor: grab; touch-action: none; padding: 8px 12px; margin: 4px; border-radius: 8px; font-weight: 600; display: inline-block; transition: transform 0.2s; user-select: none; font-size: 0.9rem; }
+        @keyframes fullShake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-15px);} 75% {transform: translateX(15px);} }
+        .shake-screen { animation: fullShake 0.4s 3; }
+        @keyframes fireworks { 0% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1.5); } 100% { opacity: 0; transform: scale(2); } }
+        .fireworks { position: fixed; top: 30%; left: 40%; font-size: 50px; animation: fireworks 1s ease-out; pointer-events: none; z-index: 100; }
+        .skull-effect { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 6rem; font-weight: 900; color: #dc2626; z-index: 200; pointer-events: none; text-shadow: 2px 2px 10px #000; }
+        .layer-label { font-size: 0.75rem; color: #9ca3af; margin-right: 8px; min-width: 70px; text-align: right; }
+        .zone-row { display: flex; align-items: center; gap: 8px; }
+
+        /* 발표자 랜덤 뽑기 */
+        #pickerBtn { position: fixed; bottom: 20px; right: 20px; z-index: 300; width: 60px; height: 60px; border-radius: 9999px; background: #4f46e5; box-shadow: 0 4px 14px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; border: none; cursor: pointer; transition: transform 0.15s; }
+        #pickerBtn:hover { transform: scale(1.08); background: #4338ca; }
+        #pickerOverlay { display: none; position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; padding: 16px; }
+        #pickerOverlay.open { display: flex; }
+        #pickerCard { background: #1f2937; border: 1px solid #374151; border-radius: 16px; padding: 24px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        #pickerResult { font-size: 2rem; font-weight: 800; text-align: center; padding: 20px 8px; min-height: 70px; display: flex; align-items: center; justify-content: center; color: #facc15; word-break: break-all; }
+        #nameList { width: 100%; min-height: 90px; resize: vertical; background: #111827; color: #fff; border: 1px solid #374151; border-radius: 8px; padding: 8px; font-size: 0.9rem; }
+    </style>
+</head>
+<body id="body" class="bg-gray-900 text-white min-h-screen p-6 flex flex-col items-center">
+
+    <h1 class="text-3xl font-bold mb-2 text-blue-400">지구 층상구조 퍼즐 마스터</h1>
+    <p id="instruction" class="mb-6 text-xl text-yellow-300">1단계: 각 층의 이름을 올바른 위치로 옮기세요.</p>
+
+    <div class="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
+        <div class="flex-1 flex flex-col gap-3 bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <div class="zone-row"><span class="layer-label">지각</span><div id="crust" class="layer-zone rounded-lg p-2 flex-1" ondrop="drop(event)" ondragover="allowDrop(event)"></div></div>
+            <div class="zone-row"><span class="layer-label">맨틀</span><div id="mantle" class="layer-zone rounded-lg p-2 flex-1" ondrop="drop(event)" ondragover="allowDrop(event)"></div></div>
+            <div class="zone-row"><span class="layer-label">외핵</span><div id="outer" class="layer-zone rounded-lg p-2 flex-1" ondrop="drop(event)" ondragover="allowDrop(event)"></div></div>
+            <div class="zone-row"><span class="layer-label">내핵</span><div id="inner" class="layer-zone rounded-lg p-2 flex-1" ondrop="drop(event)" ondragover="allowDrop(event)"></div></div>
+        </div>
+
+        <div id="cards" class="flex-1 flex flex-wrap gap-2 content-start p-6 bg-gray-800 rounded-2xl border border-gray-700" ondrop="allowDrop(event)" ondragover="allowDrop(event)">
+            <!-- 1단계 -->
+            <div id="n1" class="card bg-blue-600" draggable="true" ondragstart="drag(event)">지각</div>
+            <div id="n2" class="card bg-yellow-600" draggable="true" ondragstart="drag(event)">맨틀</div>
+            <div id="n3" class="card bg-red-600" draggable="true" ondragstart="drag(event)">외핵</div>
+            <div id="n4" class="card bg-gray-600" draggable="true" ondragstart="drag(event)">내핵</div>
+
+            <!-- 2단계 -->
+            <div id="s1" class="card bg-blue-500 hidden" draggable="true" ondragstart="drag(event)">고체</div>
+            <div id="s2" class="card bg-red-500 hidden" draggable="true" ondragstart="drag(event)">액체</div>
+            <div id="s3" class="card bg-gray-500 hidden" draggable="true" ondragstart="drag(event)">기체</div>
+            <div id="s4" class="card bg-yellow-500 hidden" draggable="true" ondragstart="drag(event)">유동성 고체</div>
+
+            <!-- 3단계 -->
+            <div id="f1" class="card bg-gray-700 hidden" draggable="true" ondragstart="drag(event)">가장 얇은 층</div>
+            <div id="f2" class="card bg-gray-700 hidden" draggable="true" ondragstart="drag(event)">해양/대륙지각</div>
+            <div id="f3" class="card bg-gray-700 hidden" draggable="true" ondragstart="drag(event)">부피의 80%</div>
+            <div id="f4" class="card bg-gray-700 hidden" draggable="true" ondragstart="drag(event)">밀도가 가장 큼</div>
+
+            <!-- 4단계 -->
+            <div id="h1" class="card bg-purple-600 hidden" draggable="true" ondragstart="drag(event)">다이아몬드가 만들어지는 층</div>
+            <div id="h2" class="card bg-purple-600 hidden" draggable="true" ondragstart="drag(event)">태양 표면보다 뜨거운 층</div>
+            <div id="h3" class="card bg-purple-600 hidden" draggable="true" ondragstart="drag(event)">지구를 자석으로 만드는 층</div>
+        </div>
+    </div>
+
+    <button onclick="nextStep()" class="mt-10 px-8 py-3 bg-green-600 hover:bg-green-500 rounded-full font-bold text-lg">다음 단계로</button>
+    <p id="msg" class="mt-6 text-2xl font-bold text-green-400"></p>
+    <p id="hint" class="mt-2 text-sm text-gray-400"></p>
+
+    <!-- 발표자 랜덤 뽑기: 모든 화면(단계)에서 떠 있는 버튼 -->
+    <button id="pickerBtn" onclick="openPicker()" title="발표자 뽑기">🎯</button>
+
+    <div id="pickerOverlay" onclick="if(event.target===this) closePicker()">
+        <div id="pickerCard">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-indigo-300">🎯 발표자 뽑기 (1~21번)</h2>
+                <button onclick="closePicker()" class="text-gray-400 hover:text-white text-xl leading-none px-2">✕</button>
+            </div>
+
+            <div id="pickerResult">-</div>
+
+            <label class="flex items-center gap-2 mt-1 text-sm text-gray-300">
+                <input type="checkbox" id="excludeUsed" class="w-4 h-4">
+                이미 뽑힌 번호는 제외하기
+            </label>
+
+            <div class="flex gap-2 mt-4">
+                <button id="startBtn" onclick="startDraw()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 font-bold">시작</button>
+                <button id="stopBtn" onclick="stopDraw()" disabled class="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-2 font-bold">멈추기</button>
+                <button onclick="resetUsed()" class="bg-gray-700 hover:bg-gray-600 rounded-lg py-2 px-4 text-sm">초기화</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let step = 1;
+        const state = { n: ['n1','n2','n3','n4'], s: ['s1','s2','s3','s4'], f: ['f1','f2','f3','f4'], h: ['h1','h2','h3'] };
+        const hints = {
+            1: "",
+            2: "힌트: 카드 하나가 어느 층에도 맞지 않을 수 있어요. 지구의 층은 모두 고체거나 액체이며, 기체인 층은 없습니다!",
+            3: "",
+            4: ""
+        };
+
+        function shuffleCards(ids) {
+            const container = document.getElementById('cards');
+            const cards = ids.map(id => document.getElementById(id));
+            cards.sort(() => Math.random() - 0.5);
+            cards.forEach(card => container.appendChild(card));
+        }
+
+        window.onload = () => shuffleCards(state.n);
+
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const cardId = ev.dataTransfer.getData("text");
+            const originalCard = document.getElementById(cardId);
+            const zone = ev.currentTarget;
+
+            if (zone.classList.contains('layer-zone')) {
+                if (isCorrect(zone.id, cardId)) {
+                    let elementToAppend;
+                    if (step === 2) {
+                        elementToAppend = originalCard.cloneNode(true);
+                        elementToAppend.id = cardId + "_" + Date.now();
+                    } else {
+                        elementToAppend = originalCard;
+                        elementToAppend.draggable = false;
+                    }
+
+                    zone.appendChild(elementToAppend);
+                    triggerEffect('correct');
+                } else {
+                    triggerEffect('wrong');
+                }
+            }
+        }
+
+        function isCorrect(zoneId, cardId) {
+            const map = {
+                'n1': 'crust', 'n2': 'mantle', 'n3': 'outer', 'n4': 'inner',
+                's1': 'crust', 's4': 'mantle', 's2': 'outer',
+                'f1': 'crust', 'f2': 'crust', 'f3': 'mantle', 'f4': 'inner',
+                'h1': 'mantle', 'h2': 'inner', 'h3': 'outer'
+            };
+            if (cardId.startsWith('s1') && zoneId === 'inner') return true;
+            return map[cardId.split('_')[0]] === zoneId;
+        }
+
+        function triggerEffect(type) {
+            const body = document.getElementById('body');
+            if (type === 'wrong') {
+                body.classList.add('shake-screen');
+                const skull = document.createElement('div');
+                skull.innerHTML = "💀 오답! 💀";
+                skull.className = "skull-effect";
+                document.body.appendChild(skull);
+                setTimeout(() => { body.classList.remove('shake-screen'); skull.remove(); }, 1000);
+            } else {
+                const boom = document.createElement('div');
+                boom.innerHTML = "🎉 정답! 🎉";
+                boom.className = "fireworks";
+                document.body.appendChild(boom);
+                setTimeout(() => boom.remove(), 1000);
+            }
+        }
+
+        function nextStep() {
+            if (step < 4) {
+                if (step === 2) state.s.forEach(id => document.getElementById(id).classList.add('hidden'));
+
+                step++;
+                const nextIds = step === 2 ? state.s : (step === 3 ? state.f : state.h);
+                nextIds.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                shuffleCards(nextIds);
+
+                document.getElementById('instruction').innerText = step + "단계: 각 층의 특징을 옮기세요.";
+                document.getElementById('hint').innerText = hints[step] || "";
+            } else {
+                document.getElementById('msg').innerText = "🎉 지구 층상구조 학습 끝! 🎉";
+                document.getElementById('hint').innerText = "";
+            }
+        }
+
+        /* ===== 발표자 뽑기 (1~21번) ===== */
+        const TOTAL_NUMBERS = 21;
+        let usedNumbers = new Set();
+        let drawTimer = null;
+        let isDrawing = false;
+
+        function openPicker() {
+            document.getElementById('pickerOverlay').classList.add('open');
+        }
+        function closePicker() {
+            document.getElementById('pickerOverlay').classList.remove('open');
+        }
+
+        function getPool() {
+            const excludeUsed = document.getElementById('excludeUsed').checked;
+            const all = Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1);
+            if (!excludeUsed) return all;
+            const remaining = all.filter(n => !usedNumbers.has(n));
+            return remaining.length > 0 ? remaining : all;
+        }
+
+        function startDraw() {
+            if (isDrawing) return;
+            const excludeUsed = document.getElementById('excludeUsed').checked;
+            let pool = getPool();
+            if (excludeUsed && pool.length === TOTAL_NUMBERS && usedNumbers.size > 0) {
+                // 전원 소진되어 자동 초기화된 경우
+                usedNumbers.clear();
+            }
+
+            isDrawing = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            const resultEl = document.getElementById('pickerResult');
+
+            drawTimer = setInterval(() => {
+                resultEl.innerText = pool[Math.floor(Math.random() * pool.length)];
+            }, 60);
+        }
+
+        function stopDraw() {
+            if (!isDrawing) return;
+            clearInterval(drawTimer);
+            isDrawing = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            const pool = getPool();
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            document.getElementById('pickerResult').innerText = chosen;
+
+            if (document.getElementById('excludeUsed').checked) {
+                usedNumbers.add(chosen);
+            }
+
+            const boom = document.createElement('div');
+            boom.innerHTML = "🎉";
+            boom.className = "fireworks";
+            boom.style.zIndex = "500";
+            document.body.appendChild(boom);
+            setTimeout(() => boom.remove(), 1000);
+        }
+
+        function resetUsed() {
+            if (isDrawing) stopDraw();
+            usedNumbers.clear();
+            document.getElementById('pickerResult').innerText = "-";
+        }
+    </script>
+</body>
+</html>
